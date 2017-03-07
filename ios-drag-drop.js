@@ -1,12 +1,14 @@
 (function(doc) {
-  var shimConfig;
+
+  
+function _exposeIosHtml5DragDropShim(config) {
   log = noop; // noOp, remove this line to enable debugging
 
   var coordinateSystemForElementFromPoint;
 
-  function main(config) {
+  function main() {
     config = config || {};
-    shimConfig = config;
+    if (!config.hasOwnProperty("simulateAnchorClick")) config.simulateAnchorClick = true;
 
     coordinateSystemForElementFromPoint = navigator.userAgent.match(/OS [1-4](?:_\d+)+ like Mac/) ? "page" : "client";
 
@@ -26,10 +28,10 @@
     }
 
     if(config.holdToDrag){
-      doc.addEventListener("touchstart", touchstartDelay(config.holdToDrag));
+      doc.addEventListener("touchstart", touchstartDelay(config.holdToDrag), {passive:false});
     }
     else {
-      doc.addEventListener("touchstart", touchstart);
+      doc.addEventListener("touchstart", touchstart, {passive:false});
     }
   }
 
@@ -315,8 +317,8 @@
           var cancel = onEvt(el, 'touchcancel', onReleasedItem, this);
           var scroll = onEvt(window, 'scroll', onReleasedItem, this);
           break;
-        }
-      } while((el = el.parentNode) && el !== doc.body);
+        }        
+      } while ((el = el.parentNode) && el !== doc.body);
     };
   };
 
@@ -328,17 +330,13 @@
         // If draggable isn't explicitly set for anchors, then simulate a click event.
         // Otherwise plain old vanilla links will stop working.
         // https://developer.mozilla.org/en-US/docs/Web/Guide/Events/Touch_events#Handling_clicks
-        if (!el.hasAttribute("draggable") && el.tagName.toLowerCase() == "a") {
-          if (shimConfig.ignoreAnchorTouch){
-            continue;
-          } else{
-            var clickEvt = document.createEvent("MouseEvents");
-            clickEvt.initMouseEvent("click", true, true, el.ownerDocument.defaultView, 1,
-              evt.screenX, evt.screenY, evt.clientX, evt.clientY,
-              evt.ctrlKey, evt.altKey, evt.shiftKey, evt.metaKey, 0, null);
-            el.dispatchEvent(clickEvt);
-            log("Simulating click to anchor");
-          }
+        if (!el.hasAttribute("draggable") && el.tagName.toLowerCase() == "a" && config.simulateAnchorClick) {
+          var clickEvt = document.createEvent("MouseEvents");
+          clickEvt.initMouseEvent("click", true, true, el.ownerDocument.defaultView, 1,
+            evt.screenX, evt.screenY, evt.clientX, evt.clientY,
+            evt.ctrlKey, evt.altKey, evt.shiftKey, evt.metaKey, 0, null);
+          el.dispatchEvent(clickEvt);
+          log("Simulating click to anchor");
         }
         evt.preventDefault();
         new DragDrop(evt,el);
@@ -370,7 +368,7 @@
     if(context) {
       handler = handler.bind(context);
     }
-    el.addEventListener(event, handler);
+    el.addEventListener(event, handler, {passive:false});
     return {
       off: function() {
         return el.removeEventListener(event, handler);
@@ -432,7 +430,13 @@
 
   function noop() {}
 
-  main(window.iosDragDropShim);
+  main();
 
+};
 
+if (typeof module === 'object' && typeof module.exports === 'object') {
+  module.exports = _exposeIosHtml5DragDropShim;
+} else if (typeof window !== 'undefined') {
+  _exposeIosHtml5DragDropShim(window.iosDragDropShim);
+}
 })(document);
